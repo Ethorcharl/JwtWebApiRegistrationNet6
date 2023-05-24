@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -13,14 +14,32 @@ namespace JwtWebApiRegistrationNet6.Controllers
     {
         public static User user = new User();
         private readonly IConfiguration _configuration;
+        private readonly IUserService _userService;
 
-        public AuthController(IConfiguration configuration) // need for read appsetting.json
+        public AuthController(IConfiguration configuration, IUserService userService) // need for read appsetting.json
         {
             _configuration = configuration;
+            _userService = userService;
+        }
+
+        [HttpGet, Authorize]
+        public ActionResult<object> GetMe() //ActionResult<object> if i will use the second way or ActionResult<string> if only 1 parameter
+        {   //methods how take info with services
+            var userName = _userService.GetMyName();
+            var role = _userService.GetRole();
+            //return Ok(userName);
+            return Ok(new { userName,role} );
+
+            //// 2 methods how take name from auht person and role from controller
+            //var userName = User?.Identity?.Name;
+            //var UserName2= User.FindFirstValue(ClaimTypes.Name); 
+            //var role= User.FindFirstValue(ClaimTypes.Role);
+            //return Ok(new { userName,UserName2,role} );
         }
 
         [HttpPost("register")]
-        public async Task<ActionResult<User>> Register(UserDTO request) {
+        public async Task<ActionResult<User>> Register(UserDTO request)
+        {
 
             CreatePasswordHash(request.Password, out byte[] passwordHash, out byte[] passwordSalt);
 
@@ -33,11 +52,12 @@ namespace JwtWebApiRegistrationNet6.Controllers
         [HttpPost("login")]
         public async Task<ActionResult<string>> Login(UserDTO request)
         {
-            if (user.Username != request.Username) {
+            if (user.Username != request.Username)
+            {
                 return BadRequest("User not found.");
             }
 
-            if (!VerifyPasswordHash(request.Password, user.PasswordHash, user.PasswordSalt)) 
+            if (!VerifyPasswordHash(request.Password, user.PasswordHash, user.PasswordSalt))
             {
                 return BadRequest("Wrong password");
             }
@@ -46,40 +66,44 @@ namespace JwtWebApiRegistrationNet6.Controllers
             return Ok(token);
         }
 
-        private string CreateToken(User user) { //creating json web token
+        private string CreateToken(User user)
+        { //creating json web token
             List<Claim> claims = new List<Claim> // add using System.Security.Claims;
             {
                 new Claim(ClaimTypes.Name, user.Username),
                 new Claim(ClaimTypes.Role, "Admin")
             };
-            
+
             var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(  // install package Microsoft.IdentityModel.Tokens
                 _configuration.GetSection("AppSetting:Token").Value));
-            
+
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256Signature);
-            
+
             var token = new JwtSecurityToken( // install package system.identitymodel.tokens.jwt
-                claims : claims,
+                claims: claims,
                 expires: DateTime.Now.AddDays(1),
                 signingCredentials: creds);
-           
+
             var jwt = new JwtSecurityTokenHandler().WriteToken(token);
-            
+
             return jwt;
         }
 
 
-        private void CreatePasswordHash(string password, out byte[] passwordHash, out byte[] passwordSalt)  
+        private void CreatePasswordHash(string password, out byte[] passwordHash, out byte[] passwordSalt)
         {
-            using (var hmac = new HMACSHA512()) {
+            using (var hmac = new HMACSHA512())
+            {
                 passwordSalt = hmac.Key;
                 passwordHash = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password));
             }
         }
 
-        private bool VerifyPasswordHash(string password, byte[] passwordHash, byte[] passwordSalt) {
+        private bool VerifyPasswordHash(string password, byte[] passwordHash, byte[] passwordSalt)
+        {
 
-            using (var hmac = new HMACSHA512(passwordSalt)) {
+            using (var hmac = new HMACSHA512(passwordSalt))
+            {
 
                 var computerHash = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password));
                 return computerHash.SequenceEqual(passwordHash);

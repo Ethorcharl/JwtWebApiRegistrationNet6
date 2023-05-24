@@ -1,3 +1,4 @@
+global using JwtWebApiRegistrationNet6.Service;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -12,6 +13,9 @@ builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 
+builder.Services.AddScoped<IUserService,UserService>(); //add new services
+builder.Services.AddHttpContextAccessor(); //
+
 builder.Services.AddSwaggerGen(options => { // add options and another code , for auth in swagger(?) need write "bearer {token}" in oauth field
     options.AddSecurityDefinition("oauth2", new OpenApiSecurityScheme
     {
@@ -22,7 +26,6 @@ builder.Services.AddSwaggerGen(options => { // add options and another code , fo
     });
     options.OperationFilter<SecurityRequirementsOperationFilter>(); //add package Swashbuckle.AspNetCore.Filters , it filter
 });
-
 
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme) //it need for authentication
